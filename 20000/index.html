@@ -118,6 +118,36 @@
   window.addEventListener('resize', resize);
   resize();
 
+  // === 에셋 로드 ===
+  const assets = {
+    playerBasic: new Image(),
+    playerUpgrade: new Image(),
+    enemy: new Image(),
+    bossImgs: [new Image(), new Image(), new Image(), new Image()],
+    bgMusic: new Audio('배경음.mp3'),
+    explosionSound: new Audio('폭발.mp3')
+  };
+  const ASSET_NAMES = {
+    playerBasic: '기본우주선.png',
+    playerUpgrade: '업그레이드우주선.png',
+    enemy: '적 우주선.png',
+    bossImgs: ['브론즈보스.png','실버보스.png','골드보스.png','플래티넘보스.png']
+  };
+  let assetsLoaded = false;
+  assets.playerBasic.src = ASSET_NAMES.playerBasic;
+  assets.playerUpgrade.src = ASSET_NAMES.playerUpgrade;
+  assets.enemy.src = ASSET_NAMES.enemy;
+  assets.bossImgs.forEach((img,i)=>img.src=ASSET_NAMES.bossImgs[i]);
+  assets.bgMusic.volume = 0.5;
+  assets.bgMusic.loop = true;
+  assets.explosionSound.volume = 0.7;
+  Promise.all([
+    new Promise(r=>{assets.playerBasic.onload=r;assets.playerBasic.onerror=r;}),
+    new Promise(r=>{assets.playerUpgrade.onload=r;assets.playerUpgrade.onerror=r;}),
+    new Promise(r=>{assets.enemy.onload=r;assets.enemy.onerror=r;}),
+    ...assets.bossImgs.map(img=>new Promise(r=>{img.onload=r;img.onerror=r;}))
+  ]).then(()=>{assetsLoaded=true;});
+
   // === 상태 ===
   let state = 'menu'; // menu, playing, gameover, clear
   let playerX, playerY, playerHp, PLAYER_MAX_HP = 500, playerSpeed = 9;
@@ -197,6 +227,7 @@
   }
 
   function createExplosion(x, y) {
+    try { assets.explosionSound.currentTime=0; assets.explosionSound.play(); } catch(e){}
     for (let i = 0; i < 50; i++) {
       explosions.push({
         x, y, dx: (Math.random()-0.5)*12, dy: (Math.random()-0.5)*12,
@@ -207,14 +238,14 @@
   }
 
   function spawnBoss(rank) {
-    const imgs = [
+    const cfgs = [
       { color: '#cd7f32', hp: 690 },   // Bronze
       { color: '#c0c0c0', hp: 1035 }, // Silver
       { color: '#ffd700', hp: 1380 }, // Gold
       { color: '#e5e4e2', hp: 2070 }  // Platinum
     ];
     const r = ["Bronze","Silver","Gold","Platinum"].indexOf(rank);
-    const cfg = imgs[r] || imgs[0];
+    const cfg = cfgs[r] || cfgs[0];
     const laserCount = [3,4,5,7][r];
     const shootDelay = [80,70,60,50][r];
     const anglesMap = { 3:[-20,0,20], 4:[-30,-10,10,30], 5:[-40,-20,0,20,40], 7:[-60,-40,-20,0,20,40,60] };
@@ -328,6 +359,7 @@
   function menuClick(x, y) {
     const r = { x: WIDTH/2 - 100, y: HEIGHT/3 + 120, w: 200, h: 50 };
     if (x >= r.x && x <= r.x+r.w && y >= r.y && y <= r.y+r.h) {
+      try { assets.bgMusic.play(); } catch(e){}
       for (let i = 0; i < 80; i++) stars.push({ x: Math.random()*WIDTH, y: Math.random()*HEIGHT, s: 1+Math.random()*2 });
       resetGame();
     }
@@ -510,7 +542,12 @@
       if (s.y > HEIGHT) { s.y = 0; s.x = Math.random()*WIDTH; }
     }
 
-    drawShip(playerX, playerY, 180, 180, '#0096ff', upgradeLevel > 0);
+    const playerImg = upgradeLevel>0 ? assets.playerUpgrade : assets.playerBasic;
+    if (assetsLoaded && playerImg.naturalWidth > 0) {
+      ctx.drawImage(playerImg, playerX, playerY, 180, 180);
+    } else {
+      drawShip(playerX, playerY, 180, 180, '#0096ff', upgradeLevel > 0);
+    }
     ctx.fillStyle = '#8b0000';
     ctx.fillRect(playerX, playerY-10, 180, 10);
     ctx.fillStyle = '#00ff00';
@@ -521,7 +558,11 @@
     ctx.fillRect(playerX, playerY-22, 180*upgradeGauge/GAUGE_MAX, 8);
 
     for (const e of enemies) {
-      drawShip(e.x, e.y, 70, 70, '#ff4444', false);
+      if (assetsLoaded && assets.enemy.naturalWidth > 0) {
+        ctx.drawImage(assets.enemy, e.x, e.y, 70, 70);
+      } else {
+        drawShip(e.x, e.y, 70, 70, '#ff4444', false);
+      }
       ctx.fillStyle = '#8b0000';
       ctx.fillRect(e.x, e.y-6, 70, 6);
       ctx.fillStyle = '#00ff00';
@@ -547,7 +588,12 @@
     }
 
     if (boss) {
-      drawBossShape(boss.x, boss.y, 300, 300, boss.color);
+      const bossImg = assets.bossImgs[boss.rankIndex];
+      if (assetsLoaded && bossImg && bossImg.naturalWidth > 0) {
+        ctx.drawImage(bossImg, boss.x, boss.y, 300, 300);
+      } else {
+        drawBossShape(boss.x, boss.y, 300, 300, boss.color);
+      }
       ctx.fillStyle = '#8b0000';
       ctx.fillRect(boss.x, boss.y-12, 300, 10);
       ctx.fillStyle = '#00ff00';
