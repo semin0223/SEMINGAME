@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+우주선_등급저장.json
+progress.json
+save_data.json
+.env
