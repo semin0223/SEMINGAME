@@ -283,7 +283,8 @@
 
   function shootPlayer() {
     const cx = playerX + 90;
-    const angles = [[0],[-10,0,10],[-15,-5,5,15],[-20,-10,0,10,20],[-30,-20,-10,0,10,20,30]][upgradeLevel] || [0];
+    const angleSets = [[0],[-10,0,10],[-15,-5,5,15],[-20,-10,0,10,20],[-30,-20,-10,0,10,20,30]];
+    const angles = angleSets[Math.min(upgradeLevel, 4)] || angleSets[4];
     for (const a of angles) {
       const rad = a * Math.PI / 180;
       bullets.push({ x: cx, y: playerY, dx: Math.sin(rad)*6, dy: -Math.cos(rad)*12 });
