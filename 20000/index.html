@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>20000</title>
-  <meta name="description" content="20000 - 우주 슈팅 게임. Bronze, Silver, Gold, Platinum 보스 격파. 20000m 도전. 무료 플레이.">
+  <meta name="description" content="20000 - 우주 슈팅 게임. Bronze, Silver, Gold, Platinum 보스 격파. 20000m 도전. 거리에 따라 난이도 변화. 무료 플레이.">
   <meta name="keywords" content="20000, 20000게임, 우주슈팅, 슈팅게임, 우주게임, 무료게임, 브라우저게임">
   <meta property="og:title" content="20000">
   <meta property="og:description" content="20000 우주 슈팅 게임. Bronze~Platinum 보스 격파 도전! 무료 플레이.">
@@ -177,6 +177,7 @@
   let bestRankString = "Bronze1", bossCleared = [false,false,false,false], gameClearedOnce = false;
   let shootCd = 0;
   let stars = [];
+  let spawnCount = 0;
   const BOSS_DISTANCE = [3000, 7000, 12000, 20000];
 
   function loadSave() {
@@ -286,7 +287,7 @@
         enemyBullets.push({
           x: midX, y: midY,
           dx: Math.sin(rad)*7, dy: Math.cos(rad)*9,
-          heal: Math.random() < 0.05
+          heal: Math.random() < 0.07
         });
       }
       boss.shootCd = boss.shootDelay;
@@ -295,9 +296,23 @@
 
   function spawnEnemy() {
     if (boss) return;
-    enemies.push({
-      x: 50 + Math.random()*(WIDTH-170), y: -80, w: 70, h: 70, hp: 60, maxHp: 60
-    });
+    spawnCount++;
+    const baseSpd = Math.min(5, 3.2 + distance/8000);
+    const types = [
+      { hp: 60, speed: baseSpd, drift: 0, shootRate: 1, tag: 'n' },
+      { hp: 35, speed: baseSpd*1.4, drift: 1.2, shootRate: 1.3, tag: 'f' },
+      { hp: 100, speed: baseSpd*0.7, drift: 0, shootRate: 0.7, tag: 'h' },
+      { hp: 50, speed: baseSpd, drift: -1.5, shootRate: 1.5, tag: 's' }
+    ];
+    const roll = Math.random();
+    const t = roll < 0.5 ? types[0] : roll < 0.75 ? types[1] : roll < 0.9 ? types[2] : types[3];
+    const cnt = (spawnCount % 9 === 0 && distance > 2000) ? 3 : (Math.random() < 0.15 && distance > 3000) ? 2 : 1;
+    for (let i = 0; i < cnt; i++) {
+      enemies.push({
+        x: 80 + Math.random()*(WIDTH-260), y: -80 - i*40, w: 70, h: 70, hp: t.hp, maxHp: t.hp, speed: t.speed,
+        drift: t.drift, shootRate: t.shootRate, dir: Math.random() < 0.5 ? 1 : -1
+      });
+    }
   }
 
   function shootPlayer() {
@@ -312,9 +327,10 @@
 
   function enemyShoot(e) {
     const cx = e.x + 35, cy = e.y + 60;
-    enemyBullets.push({ x: cx, y: cy, dx: 0, dy: 7, heal: Math.random() < 0.05 });
-    enemyBullets.push({ x: cx, y: cy, dx: -4, dy: 6, heal: Math.random() < 0.05 });
-    enemyBullets.push({ x: cx, y: cy, dx: 4, dy: 6, heal: Math.random() < 0.05 });
+    const pat = (e.tag || 'n') === 's' ? [[0,8],[-5,6],[5,6],[-3,7],[3,7]] : [[0,7],[-4,6],[4,6]];
+    for (const [dx, dy] of pat) {
+      enemyBullets.push({ x: cx, y: cy, dx, dy, heal: Math.random() < 0.07 });
+    }
   }
 
   function resetGame() {
@@ -331,6 +347,7 @@
     distance = 0;
     bossSpawned = [false,false,false,false];
     bossClearedThisRun = [false,false,false,false];
+    spawnCount = 0;
     state = 'playing';
   }
 
@@ -430,7 +447,7 @@
     ctx.fillText(`Best Rank : ${bestRankString}`, WIDTH/2, HEIGHT/3 + 50);
     ctx.fillStyle = '#0096ff';
     ctx.font = '18px sans-serif';
-    ctx.fillText('5% chance: blue bullets heal 30 HP', WIDTH/2, HEIGHT/3 + 90);
+    ctx.fillText('7% chance: blue bullets heal 30 HP', WIDTH/2, HEIGHT/3 + 90);
     ctx.fillStyle = '#0096ff';
     ctx.fillRect(WIDTH/2 - 100, HEIGHT/3 + 120, 200, 50);
     ctx.fillStyle = '#fff';
@@ -525,8 +542,11 @@
     if (keys[' '] && shootCd <= 0) { shootPlayer(); shootCd = 15; }
     if (shootCd > 0) shootCd--;
 
-    // 적 스폰
-    if (ts - lastSpawn > 1200) {
+    // 적 스폰 (간격·개수 랜덤 → 매번 다른 리듬)
+    const base = Math.max(700, 1400 - distance/12);
+    const jitter = 200 + Math.random()*400;
+    const spawnInterval = base + (Math.random() - 0.5) * jitter;
+    if (ts - lastSpawn > spawnInterval) {
       lastSpawn = ts;
       spawnEnemy();
     }
@@ -542,9 +562,12 @@
     }
 
     // 적 이동
+    const baseShoot = Math.min(0.014, 0.006 + distance/300000);
     for (const e of enemies) {
-      e.y += 4;
-      if (Math.random() < 0.01) enemyShoot(e);
+      e.y += e.speed || 4;
+      e.x += (e.drift || 0) * (e.dir || 1);
+      if (e.x < 50 || e.x > WIDTH - 120) e.dir *= -1;
+      if (Math.random() < baseShoot * (e.shootRate || 1)) enemyShoot(e);
     }
     enemies = enemies.filter(e => e.y < HEIGHT);
 
@@ -596,7 +619,7 @@
             createExplosion(e.x+35, e.y+35);
             enemies.splice(enemies.indexOf(e), 1);
             if (upgradeLevel < MAX_UPGRADE) {
-              upgradeGauge += 20;
+              upgradeGauge += 20 + Math.floor(e.maxHp/5);
               while (upgradeGauge >= GAUGE_MAX && upgradeLevel < MAX_UPGRADE) {
                 upgradeLevel++; upgradeGauge -= GAUGE_MAX;
               }
