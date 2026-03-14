@@ -163,7 +163,7 @@
   ]).then(()=>{assetsLoaded=true;});
 
   // === 상태 ===
-  let state = 'menu'; // menu, playing, paused, gameover, clear
+  let state = 'menu'; // menu, playing, gameover, clear
   let playerX, playerY, playerHp, PLAYER_MAX_HP = 500, playerSpeed = 9;
   let upgradeLevel = 0, upgradeGauge = 0, GAUGE_MAX = 100, MAX_UPGRADE = 5;
   let bullets = [], enemyBullets = [], enemies = [], explosions = [];
@@ -421,24 +421,6 @@
     ctx.fillText('ESC : Quit', WIDTH/2, HEIGHT/3 + 310);
   }
 
-  function drawPauseMenu() {
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(0, 0, WIDTH, HEIGHT);
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 48px "Malgun Gothic", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('PAUSED', WIDTH/2, HEIGHT/3);
-    ctx.font = '24px sans-serif';
-    ctx.fillText('ESC : Resume', WIDTH/2, HEIGHT/3 + 80);
-    ctx.fillText('M : Main Menu', WIDTH/2, HEIGHT/3 + 130);
-  }
-
-  function pauseClick(x, y) {
-    const cy = HEIGHT/3;
-    if (y >= cy + 55 && y <= cy + 105) state = 'playing';
-    if (y >= cy + 105 && y <= cy + 155) state = 'menu';
-  }
-
   function resultClick(x, y) {
     const cy = HEIGHT/3;
     if (y >= cy + 180 && y <= cy + 220) { resetGame(); return; }
@@ -465,23 +447,22 @@
       return;
     }
 
-    // 입력 (일시정지 중에는 처리 안 함)
-    if (state !== 'paused') {
+    // 입력
+    if (keys['ArrowLeft'] && playerX > 0) playerX -= playerSpeed;
     if (keys['ArrowRight'] && playerX < WIDTH - 180) playerX += playerSpeed;
     if (keys['ArrowUp'] && playerY > 0) playerY -= playerSpeed;
     if (keys['ArrowDown'] && playerY < HEIGHT - 180) playerY += playerSpeed;
     if (keys[' '] && shootCd <= 0) { shootPlayer(); shootCd = 15; }
-      if (shootCd > 0) shootCd--;
-    }
+    if (shootCd > 0) shootCd--;
 
-    // 적 스폰 (일시정지 중 제외)
-    if (state !== 'paused' && ts - lastSpawn > 1200) {
+    // 적 스폰
+    if (ts - lastSpawn > 1200) {
       lastSpawn = ts;
       spawnEnemy();
     }
 
-    // 거리 / 보스 스폰 (일시정지 중 제외)
-    if (state !== 'paused' && !boss) distance += 1;
+    // 거리 / 보스 스폰
+    if (!boss) distance += 1;
     for (let i = 0; i < 4; i++) {
       if (distance >= BOSS_DISTANCE[i] && !bossSpawned[i]) {
         spawnBoss(["Bronze","Silver","Gold","Platinum"][i]);
@@ -490,17 +471,14 @@
       }
     }
 
-    // 적 이동 (일시정지 중 제외)
-    if (state !== 'paused') {
+    // 적 이동
     for (const e of enemies) {
       e.y += 4;
       if (Math.random() < 0.01) enemyShoot(e);
     }
     enemies = enemies.filter(e => e.y < HEIGHT);
 
-    }
     // 총알
-    if (state !== 'paused') {
     for (const b of bullets) { b.x += b.dx; b.y += b.dy; }
     bullets = bullets.filter(b => b.y > 0 && b.x > 0 && b.x < WIDTH);
     for (const eb of enemyBullets) { eb.x += eb.dx; eb.y += eb.dy; }
@@ -513,10 +491,9 @@
         if (playerHp <= 0) state = 'gameover';
       }
     }
-    }
 
-    // 보스 (일시정지 중 제외)
-    if (state !== 'paused' && boss) {
+    // 보스
+    if (boss) {
       if (boss.y < 100) boss.y += 1;
       if (boss.x <= 0 || boss.x + 300 >= WIDTH) boss.direction *= -1;
       boss.x += boss.speed * boss.direction;
@@ -539,8 +516,7 @@
       }
     }
 
-    // 적 vs 총알 (일시정지 중 제외)
-    if (state !== 'paused') {
+    // 적 vs 총알
     for (const e of enemies.slice()) {
       for (const b of bullets.slice()) {
         if (e.x < b.x && b.x < e.x+70 && e.y < b.y && b.y < e.y+70) {
@@ -559,7 +535,6 @@
           break;
         }
       }
-    }
     }
 
     // 폭발
@@ -647,8 +622,6 @@
     ctx.fillStyle = '#ffff00';
     ctx.fillText(getCurrentRank(), 20, 55);
 
-    if (state === 'paused') drawPauseMenu();
-
     requestAnimationFrame(gameLoop);
   }
 
@@ -657,17 +630,13 @@
     const x = (e.clientX - rect.left) * (canvas.width / rect.width);
     const y = (e.clientY - rect.top) * (canvas.height / rect.height);
     if (state === 'menu') menuClick(x, y);
-    if (state === 'paused') pauseClick(x, y);
     if (state === 'gameover' || state === 'clear') resultClick(x, y);
   });
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      if (state === 'playing' || state === 'paused' || state === 'gameover' || state === 'clear') { e.preventDefault(); state = 'menu'; }
-      else if (state === 'menu') window.close();
-    }
+    if (e.key === 'Escape') window.close();
     if (e.key === 'r' && (state === 'gameover' || state === 'clear')) resetGame();
-    if (e.key === 'm' && (state === 'gameover' || state === 'clear' || state === 'paused')) state = 'menu';
+    if (e.key === 'm' && (state === 'gameover' || state === 'clear')) state = 'menu';
   });
 
   requestAnimationFrame(gameLoop);
