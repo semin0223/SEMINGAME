@@ -9,7 +9,7 @@
   <meta property="og:title" content="20000">
   <meta property="og:description" content="20000 우주 슈팅 게임. Bronze~Platinum 보스 격파 도전! 무료 플레이.">
   <meta property="og:type" content="website">
-  <!-- Google Analytics - 동시 접속자 확인: analytics.google.com → 실시간 -->
+  <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -95,23 +95,10 @@
       transition: transform 0.1s;
     }
     .fireBtn:active { transform: scale(0.95); }
-    #onlineCount {
-      position: fixed;
-      top: 12px;
-      right: 12px;
-      z-index: 50;
-      color: #fff;
-      font-size: 14px;
-      background: rgba(0,0,0,0.5);
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-family: 'Malgun Gothic', sans-serif;
-    }
   </style>
 </head>
 <body>
   <h1 style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">20000</h1>
-  <div id="onlineCount">Online: —</div>
   <div id="gameContainer">
     <canvas id="gameCanvas"></canvas>
   </div>
@@ -125,48 +112,6 @@
     <button class="fireBtn" data-key=" ">FIRE</button>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
-  <script>
-  // 개발자만 동접 표시 - URL에 ?admin=1 붙이면 보임 (예: 사이트주소?admin=1)
-  (function() {
-    const isAdmin = /[?&]admin=1/.test(location.search);
-    const el = document.getElementById('onlineCount');
-    if (el) el.style.display = isAdmin ? 'block' : 'none';
-  })();
-  </script>
-  <script>
-  // 동시 접속자 - Firebase 설정 필요: console.firebase.google.com 에서 프로젝트 생성 후 config 입력
-  (function() {
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-      projectId: "YOUR_PROJECT",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "123456789",
-      appId: "1:123456789:web:abc123"
-    };
-    if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY") {
-      try {
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const sessId = 'u' + Date.now() + '-' + Math.random().toString(36).slice(2);
-        const onlineRef = db.ref('onlineUsers');
-        const myRef = onlineRef.child(sessId);
-        myRef.set(true);
-        myRef.onDisconnect().remove();
-        onlineRef.on('value', function(snap) {
-          const n = snap.numChildren();
-          const el = document.getElementById('onlineCount');
-          if (el) el.textContent = 'Online: ' + n;
-        });
-      } catch(e) {
-        document.getElementById('onlineCount').textContent = 'Online: —';
-      }
-    }
-  })();
-  </script>
   <script>
 (function() {
   const VALID_RANKS = ["Bronze1","Bronze2","Silver1","Silver2","Gold1","Gold2","Platinum1","Platinum2"];
