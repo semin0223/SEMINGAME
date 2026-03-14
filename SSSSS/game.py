@@ -256,20 +256,12 @@ def ai_move(ai):
     speed = 2.5 if ai.role=="crew" else 3.5
 
     if ai.role=="imposter":
-        # 임포스터 행동
-        targets = [p for p in [player]+AIs if p.alive and p.role=="crew"]
-        visible_targets = [t for t in targets if can_see_player(ai, t)]  # 시야 내에 있으면 인식 (벽 뒤도)
-        
-        # 크루가 보이면 추적, 없으면 항상 돌아다니기
-        if visible_targets:
-            target = visible_targets[0]
-            dx, dy = target.x-ai.x, target.y-ai.y
-        else:
-            # 돌아다니기: 새 목표 설정 또는 기존 목표로 이동
-            if ai.wander_target is None or math.hypot(ai.x-ai.wander_target[0], ai.y-ai.wander_target[1]) < 80:
-                ai.wander_target = (random.randint(100, MAP_WIDTH-100), random.randint(100, MAP_HEIGHT-100))
-            dx = ai.wander_target[0] - ai.x
-            dy = ai.wander_target[1] - ai.y
+        # 임포스터 행동 - 추적 금지, 항상 돌아다니기만 (몰려다니는 것 불가)
+        # 돌아다니기: 새 목표 설정 또는 기존 목표로 이동
+        if ai.wander_target is None or math.hypot(ai.x-ai.wander_target[0], ai.y-ai.wander_target[1]) < 80:
+            ai.wander_target = (random.randint(100, MAP_WIDTH-100), random.randint(100, MAP_HEIGHT-100))
+        dx = ai.wander_target[0] - ai.x
+        dy = ai.wander_target[1] - ai.y
         
         if dx == 0 and dy == 0:
             return

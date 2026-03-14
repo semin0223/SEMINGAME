@@ -49,52 +49,60 @@
       bottom: 0;
       left: 0;
       right: 0;
-      height: 140px;
+      height: 160px;
       display: none;
       justify-content: space-between;
       align-items: flex-end;
-      padding: 12px 20px 24px;
+      padding: 16px 24px 28px;
       pointer-events: none;
       z-index: 100;
     }
     #controls.visible { display: flex; }
-    .dpad {
-      display: grid;
-      grid-template: ". up ." "left . right" ". down ." / 44px 44px 44px;
-      gap: 4px;
-      pointer-events: auto;
-    }
-    .dpad button {
-      width: 44px;
-      height: 44px;
-      border: none;
-      border-radius: 8px;
-      background: rgba(0,150,255,0.4);
-      color: #fff;
-      font-size: 18px;
-      cursor: pointer;
-      transition: background 0.1s;
-    }
-    .dpad button:active { background: rgba(0,150,255,0.8); }
-    .dpad .u { grid-area: up; }
-    .dpad .d { grid-area: down; }
-    .dpad .l { grid-area: left; }
-    .dpad .r { grid-area: right; }
-    .fireBtn {
-      width: 80px;
-      height: 80px;
+    .joystickZone {
+      width: 140px;
+      height: 140px;
       border-radius: 50%;
-      border: none;
+      background: rgba(0,80,150,0.35);
+      border: 3px solid rgba(255,255,255,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      touch-action: none;
+      position: relative;
+    }
+    .joystickStick {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: rgba(0,150,255,0.7);
+      border: 2px solid rgba(255,255,255,0.6);
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      transition: transform 0.05s ease-out;
+    }
+    .joystickZone.active .joystickStick {
+      transition: none;
+    }
+    .fireBtn {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 4px solid rgba(255,255,255,0.5);
       background: linear-gradient(180deg, #e63946, #c1121f);
       color: #fff;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: bold;
       cursor: pointer;
       pointer-events: auto;
-      box-shadow: 0 4px 20px rgba(230,57,70,0.5);
-      transition: transform 0.1s;
+      box-shadow: 0 6px 24px rgba(230,57,70,0.5);
+      transition: transform 0.08s;
+      touch-action: none;
     }
-    .fireBtn:active { transform: scale(0.95); }
+    .fireBtn:active { transform: scale(0.92); }
   </style>
 </head>
 <body>
@@ -103,11 +111,8 @@
     <canvas id="gameCanvas"></canvas>
   </div>
   <div id="controls">
-    <div class="dpad">
-      <button class="u" data-key="ArrowUp">▲</button>
-      <button class="d" data-key="ArrowDown">▼</button>
-      <button class="l" data-key="ArrowLeft">◀</button>
-      <button class="r" data-key="ArrowRight">▶</button>
+    <div class="joystickZone" id="joystickZone">
+      <div class="joystickStick" id="joystickStick"></div>
     </div>
     <button class="fireBtn" data-key=" ">FIRE</button>
   </div>
@@ -337,15 +342,80 @@
   });
   document.addEventListener('keyup', e => { keys[e.key] = false; });
 
-  document.querySelectorAll('#controls button').forEach(btn => {
-    const key = btn.dataset.key;
-    const event = (down) => () => { keys[key] = down; };
-    btn.addEventListener('touchstart', e => { e.preventDefault(); event(true)(); });
-    btn.addEventListener('touchend', e => { e.preventDefault(); event(false)(); });
-    btn.addEventListener('mousedown', () => event(true)());
-    btn.addEventListener('mouseup', () => event(false)());
-    btn.addEventListener('mouseleave', () => event(false)());
-  });
+  // 조이스틱 (가상)
+    const joystickZone = document.getElementById('joystickZone');
+    const joystickStick = document.getElementById('joystickStick');
+    const JOY_RADIUS = 50;
+    let joyTouchId = null;
+    function setJoyKeys(dx, dy) {
+      const deadzone = 0.25;
+      keys['ArrowUp'] = dy < -deadzone;
+      keys['ArrowDown'] = dy > deadzone;
+      keys['ArrowLeft'] = dx < -deadzone;
+      keys['ArrowRight'] = dx > deadzone;
+    }
+    function joyFromPos(zone, clientX, clientY) {
+      const rect = zone.getBoundingClientRect();
+      const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+      let dx = (clientX - cx) / (rect.width/2);
+      let dy = (clientY - cy) / (rect.height/2);
+      const len = Math.sqrt(dx*dx + dy*dy);
+      if (len > 1) { dx /= len; dy /= len; }
+      return [dx, dy];
+    }
+    function joyMove(e, isTouch) {
+      const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+      const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+      const [dx, dy] = joyFromPos(joystickZone, clientX, clientY);
+      setJoyKeys(dx, dy);
+      joystickStick.style.transform = `translate(calc(-50% + ${Math.max(-JOY_RADIUS, Math.min(JOY_RADIUS, dx*JOY_RADIUS))}px), calc(-50% + ${Math.max(-JOY_RADIUS, Math.min(JOY_RADIUS, dy*JOY_RADIUS))}px))`;
+    }
+    function joyEnd() {
+      joyTouchId = null;
+      joystickZone.classList.remove('active');
+      keys['ArrowUp'] = keys['ArrowDown'] = keys['ArrowLeft'] = keys['ArrowRight'] = false;
+      joystickStick.style.transform = 'translate(-50%, -50%)';
+    }
+    joystickZone.addEventListener('touchstart', e => {
+      e.preventDefault();
+      if (joyTouchId === null) {
+        joyTouchId = e.touches[0].identifier;
+        joystickZone.classList.add('active');
+        joyMove(e, true);
+      }
+    });
+    joystickZone.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (let i = 0; i < e.touches.length; i++) {
+        if (e.touches[i].identifier === joyTouchId) {
+          joyMove({ touches: [e.touches[i]] }, true);
+          break;
+        }
+      }
+    });
+    joystickZone.addEventListener('touchend', e => {
+      e.preventDefault();
+      let found = false;
+      for (let i = 0; i < e.touches.length; i++) {
+        if (e.touches[i].identifier === joyTouchId) { found = true; break; }
+      }
+      if (!found) joyEnd();
+    });
+    joystickZone.addEventListener('mousedown', e => {
+      e.preventDefault();
+      joystickZone.classList.add('active');
+      joyMove(e, false);
+      const onMouseMove = (e2) => joyMove(e2, false);
+      const onMouseUp = () => { document.removeEventListener('mousemove', onMouseMove); document.removeEventListener('mouseup', onMouseUp); joyEnd(); };
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+    // FIRE 버튼
+    document.querySelector('.fireBtn').addEventListener('touchstart', e => { e.preventDefault(); keys[' '] = true; });
+    document.querySelector('.fireBtn').addEventListener('touchend', e => { e.preventDefault(); keys[' '] = false; });
+    document.querySelector('.fireBtn').addEventListener('mousedown', () => keys[' '] = true);
+    document.querySelector('.fireBtn').addEventListener('mouseup', () => keys[' '] = false);
+    document.querySelector('.fireBtn').addEventListener('mouseleave', () => keys[' '] = false);
 
   // === 메인 메뉴 ===
   function drawMenu() {
